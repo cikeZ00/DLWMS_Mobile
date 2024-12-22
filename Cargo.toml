@@ -1,0 +1,11 @@
+[package]
+name = "DLWMS_Mobile"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+dioxus = { version = "0.6.1", features = ["default", "desktop", "hooks", "router", "web"] }
+reqwest = { version = "0.12.9", features = ["cookies"] }
+tokio = { version = "1.42.0", features = ["rt", "rt-multi-thread", "macros"] }
+scraper = "0.22.0"
+wasm-bindgen-futures = "0.4.49"
