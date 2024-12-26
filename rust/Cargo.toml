@@ -1,0 +1,15 @@
+[package]
+name = "rust_lib_dlwms_mobile"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "staticlib"]
+
+[dependencies]
+flutter_rust_bridge = { version = "=2.7.0", features = ["dart-opaque"] }
+reqwest = { version = "0.12.9", features = ["json", "cookies"] }
+scraper = "0.22.0"
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1.0.193", features = ["derive"] }
+reqwest_cookie_store = "0.8.0"
