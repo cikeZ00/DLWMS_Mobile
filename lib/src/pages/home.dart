@@ -76,7 +76,7 @@ class _MyHomePageState extends State<MyHomePage> {
                           ),
                           const SizedBox(height: 8.0),
                           Text(
-                            '${news.date} - ${news.author}',
+                            '${news.date}  ${news.author}',
                             style: Theme.of(context).textTheme.labelSmall,
                           ),
                           const SizedBox(height: 8.0),
