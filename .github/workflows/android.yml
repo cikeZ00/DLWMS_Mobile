@@ -1,0 +1,70 @@
+name: Build Android APK
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    env:
+      FLUTTER_CHANNEL: stable
+      ANDROID_API_LEVEL: 35
+      ANDROID_BUILD_TOOLS: 35.0.0
+      ANDROID_HOME: /opt/android-sdk
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up Java JDK
+        uses: actions/setup-java@v2
+        with:
+          distribution: 'zulu'
+          java-version: '21'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.22.2'
+
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsecret-1-dev libssl-dev
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v2
+        with:
+          api-level: ${{ env.ANDROID_API_LEVEL }}
+          build-tools: ${{ env.ANDROID_BUILD_TOOLS }}
+          ndk: '23.1.7779620'
+
+      - name: Install Flutter Rust Bridge crate
+        run: cargo install flutter_rust_bridge_codegen cargo-expand
+
+      - name: Install Flutter dependencies
+        run: flutter pub get
+
+      - name: Generate Flutter code from Rust code
+        run: flutter_rust_bridge_codegen generate
+
+      - name: Build Flutter app for Android
+        run: flutter build apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release.apk
+          path: build/app/outputs/flutter-apk/app-release.apk
