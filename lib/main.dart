@@ -1,6 +1,10 @@
-import 'package:flutter/material.dart';
 import 'package:dlwms_mobile/src/rust/api/simple.dart';
 import 'package:dlwms_mobile/src/rust/frb_generated.dart';
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:dlwms_mobile/src/pages/login.dart';
+import 'package:dlwms_mobile/src/pages/home.dart';
+import 'package:dlwms_mobile/src/lib/theme_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,114 +19,55 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'DLWMS But Good',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
-      home: const MyHomePage(),
+      theme: ThemeProvider.theme,
+      home: const InitialPage(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key});
+class InitialPage extends StatefulWidget {
+  const InitialPage({super.key});
 
   @override
-  _MyHomePageState createState() => _MyHomePageState();
+  _InitialPageState createState() => _InitialPageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  final TextEditingController _usernameController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _instituteController = TextEditingController();
-  final TextEditingController _urlController = TextEditingController();
-  String _loginMessage = '';
-  String _fetchedData = '';
+class _InitialPageState extends State<InitialPage> {
   String _cookies = '';
+  bool _cookiesValid = false;
 
-  Future<void> _login() async {
-    final username = _usernameController.text;
-    final password = _passwordController.text;
-    final institute = _instituteController.text;
-
-    try {
-      final response = await loginSync(
-        username: username,
-        password: password,
-        institute: institute,
-      );
-      setState(() {
-        _loginMessage = response.message;
-        if (response.success && response.cookies != null) {
-          _cookies = response.cookies!;
-          print('Cookies: $_cookies');
-          _fetchData(response.cookies!);
-        }
-      });
-    } catch (e) {
-      setState(() {
-        _loginMessage = 'Login failed: $e';
-      });
-    }
+  @override
+  void initState() {
+    super.initState();
+    _loadCookies();
   }
 
-  Future<void> _fetchData(String cookies) async {
-    final url = _urlController.text;
+  Future<void> _loadCookies() async {
+    final prefs = await SharedPreferences.getInstance();
+    final cookies = prefs.getString('cookies') ?? '';
+    if (cookies.isNotEmpty) {
+      _cookiesValid = await _validateCookies(cookies);
+    }
+    setState(() {
+      _cookies = cookies;
+    });
+  }
 
+  Future<bool> _validateCookies(String cookies) async {
     try {
-      final response = await requestPageSync(
-        url: url,
-        cookies: cookies,
-      );
-      setState(() {
-        _fetchedData = response.page;
-      });
+      final response = await validateCookiesSync(cookies: cookies);
+      return response.isValid;
     } catch (e) {
-      setState(() {
-        _fetchedData = 'Fetch failed: $e';
-      });
+      return false;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('DLWMS But Good'),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: <Widget>[
-            TextField(
-              controller: _usernameController,
-              decoration: const InputDecoration(labelText: 'Username'),
-            ),
-            TextField(
-              controller: _passwordController,
-              decoration: const InputDecoration(labelText: 'Password'),
-              obscureText: true,
-            ),
-            TextField(
-              controller: _instituteController,
-              decoration: const InputDecoration(labelText: 'Institute'),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _login,
-              child: const Text('Login'),
-            ),
-            const SizedBox(height: 20),
-            Text(_loginMessage),
-            const SizedBox(height: 20),
-            TextField(
-              controller: _urlController,
-              decoration: const InputDecoration(labelText: 'URL to fetch data'),
-            ),
-            const SizedBox(height: 20),
-            Text(_fetchedData),
-          ],
-        ),
-      ),
-    );
+    if (_cookies.isEmpty || !_cookiesValid) {
+      return const LoginPage();
+    } else {
+      return const MyHomePage();
+    }
   }
 }

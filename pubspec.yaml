@@ -38,6 +38,9 @@ dependencies:
   rust_lib_dlwms_mobile:
     path: rust_builder
   flutter_rust_bridge: 2.7.0
+  shared_preferences: ^2.3.3
+  flutter_launcher_icons: ^0.14.2
+
 
 dev_dependencies:
   flutter_test:

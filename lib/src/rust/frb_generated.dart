@@ -66,7 +66,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.7.0';
 
   @override
-  int get rustContentHash => 1556802072;
+  int get rustContentHash => 1555646422;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -84,6 +84,9 @@ abstract class RustLibApi extends BaseApi {
 
   Future<PageRequestResponse> crateApiSimpleRequestPageSync(
       {required String url, required String cookies});
+
+  Future<ValidateCookiesResponse> crateApiSimpleValidateCookiesSync(
+      {required String cookies});
 }
 
 class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
@@ -150,6 +153,32 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         argNames: ["url", "cookies"],
       );
 
+  @override
+  Future<ValidateCookiesResponse> crateApiSimpleValidateCookiesSync(
+      {required String cookies}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(cookies, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 3, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_validate_cookies_response,
+        decodeErrorData: sse_decode_String,
+      ),
+      constMeta: kCrateApiSimpleValidateCookiesSyncConstMeta,
+      argValues: [cookies],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSimpleValidateCookiesSyncConstMeta =>
+      const TaskConstMeta(
+        debugName: "validate_cookies_sync",
+        argNames: ["cookies"],
+      );
+
   @protected
   String dco_decode_String(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
@@ -204,6 +233,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   int dco_decode_u_8(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as int;
+  }
+
+  @protected
+  ValidateCookiesResponse dco_decode_validate_cookies_response(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 1)
+      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
+    return ValidateCookiesResponse(
+      isValid: dco_decode_bool(arr[0]),
+    );
   }
 
   @protected
@@ -265,6 +305,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ValidateCookiesResponse sse_decode_validate_cookies_response(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_isValid = sse_decode_bool(deserializer);
+    return ValidateCookiesResponse(isValid: var_isValid);
+  }
+
+  @protected
   int sse_decode_i_32(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getInt32();
@@ -321,6 +369,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_u_8(int self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putUint8(self);
+  }
+
+  @protected
+  void sse_encode_validate_cookies_response(
+      ValidateCookiesResponse self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_bool(self.isValid, serializer);
   }
 
   @protected

@@ -20,6 +20,10 @@ pub struct PageRequestResponse {
     pub page: String,
 }
 
+pub struct ValidateCookiesResponse {
+    pub is_valid: bool,
+}
+
 pub fn login_sync(username: &str, password: &str, institute: &str) -> Result<LoginResponse, String> {
     let runtime = tokio::runtime::Runtime::new().map_err(|e| e.to_string())?;
     runtime.block_on(login(username, password, institute))
@@ -96,8 +100,6 @@ async fn login(username: &str, password: &str, institute: &str) -> Result<LoginR
         .map_err(|e| e.to_string())?;
     
     let cookies = cookie_store.lock().unwrap().iter_unexpired().map(|c| format!("{}={}", c.name(), c.value())).collect::<Vec<String>>().join("; ");
-    
-    println!("Cookies: {:?}", cookies);
 
     let response_text = response.text().await.map_err(|e| e.to_string())?;
 
@@ -139,6 +141,11 @@ async fn request_page(url: &str, cookies: &str) -> Result<PageRequestResponse, S
         .map_err(|e| e.to_string())?;
 
     let response_text = response.text().await.map_err(|e| e.to_string())?;
+
+    if !response_text.contains("logout.aspx") {
+        return Err("Failed to request page. Cookies are invalid.".to_string());
+    }
+
     Ok(PageRequestResponse {
         success: true,
         message: "Page requested successfully".to_string(),
@@ -154,4 +161,37 @@ fn extract_hidden_value(document: &Html, field_name: &str) -> Result<String, Box
         }
     }
     Err(format!("Failed to extract value for field: {}", field_name).into())
+}
+
+pub fn validate_cookies_sync(cookies: &str) -> Result<ValidateCookiesResponse, String> {
+    let runtime = tokio::runtime::Runtime::new().map_err(|e| e.to_string())?;
+    runtime.block_on(validate_cookies(cookies))
+}
+
+async fn validate_cookies(cookies: &str) -> Result<ValidateCookiesResponse, String> {
+    let cookie_store = CookieStore::new(None);
+    let cookie_store = CookieStoreMutex::new(cookie_store);
+    let cookie_store = Arc::new(cookie_store);
+
+    let client = Client::builder()
+        .cookie_provider(Arc::clone(&cookie_store))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let cookies_str = cookies.replace(";", "; ");
+    let mut headers = HeaderMap::new();
+    headers.insert(USER_AGENT, HeaderValue::from_static("Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:133.0) Gecko/20100101 Firefox/133.0"));
+    headers.insert(COOKIE, HeaderValue::from_str(&cookies_str).map_err(|e| e.to_string())?);
+
+    let response = client
+        .get("https://www.fit.ba/student/default.aspx")
+        .headers(headers)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let response_text = response.text().await.map_err(|e| e.to_string())?;
+    let is_valid = response_text.contains("logout.aspx");
+
+    Ok(ValidateCookiesResponse { is_valid })
 }
