@@ -1,4 +1,4 @@
-package com.example.dlwms_mobile
+package com.cikez.dlwms_mobile
 
 import io.flutter.embedding.android.FlutterActivity
 
