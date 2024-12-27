@@ -237,6 +237,7 @@ struct News {
     subject: String,
     author: String,
     abstract_text: String,
+    link: String,
 }
 
 async fn request_home(cookies: &str) -> Result<String, String> {
@@ -248,7 +249,7 @@ async fn request_home(cookies: &str) -> Result<String, String> {
     let subject_selector = Selector::parse("span#lblPredmet").map_err(|e| e.to_string())?;
     let author_selector = Selector::parse("a#HyperLink9").map_err(|e| e.to_string())?;
     let abstract_selector = Selector::parse("div.abstract").map_err(|e| e.to_string())?;
-
+    
     let mut news_items = Vec::new();
 
     for news in document.select(&news_selector) {
@@ -256,14 +257,24 @@ async fn request_home(cookies: &str) -> Result<String, String> {
         let date = news.select(&date_selector).next().map(|e| e.inner_html()).unwrap_or_default();
         let subject = news.select(&subject_selector).next().map(|e| e.inner_html()).unwrap_or_default();
         let author = news.select(&author_selector).next().map(|e| e.inner_html()).unwrap_or_default();
-        let abstract_text = news.select(&abstract_selector).next().map(|e| e.inner_html()).unwrap_or_default();
+        let link = format!("https://www.fit.ba/student/{}", news.select(&title_selector).next().map(|e| e.value().attr("href").unwrap_or_default()).unwrap_or_default().to_string());
 
+        let abstract_text = news.select(&abstract_selector)
+            .map(|e| e.text().collect::<Vec<_>>().join(" "))
+            .collect::<Vec<_>>()
+            .join("\n")
+            .replace("\n", " ")
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ");
+        
         news_items.push(News {
             title,
             date,
             subject,
             author,
             abstract_text,
+            link,
         });
     }
 
@@ -273,4 +284,73 @@ async fn request_home(cookies: &str) -> Result<String, String> {
 pub fn request_home_sync(cookies: &str) -> Result<String, String> {
     let runtime = tokio::runtime::Runtime::new().map_err(|e| e.to_string())?;
     runtime.block_on(request_home(cookies))
+}
+
+// News Details
+#[derive(serde::Serialize, serde::Deserialize)]
+struct NewsDetails {
+    title: String,
+    date: String,
+    subject: String,
+    author: String,
+    abstract_text: Option<String>,
+    file: Option<String>,
+    table: Option<Vec<Vec<String>>>,
+}
+
+async fn request_news_details(url: &str, cookies: &str) -> Result<String, String> {
+    let html = request(url, cookies).await?;
+    let document = Html::parse_document(&html);
+    let title_selector = Selector::parse("span#lblNaslov").map_err(|e| e.to_string())?;
+    let date_selector = Selector::parse("span#lblDatum").map_err(|e| e.to_string())?;
+    let subject_selector = Selector::parse("span#lblPredmet").map_err(|e| e.to_string())?;
+    let author_selector = Selector::parse("a#linkNapisao").map_err(|e| e.to_string())?;
+    let abstract_selector = Selector::parse("div#Panel1 > p").map_err(|e| e.to_string())?;
+    let file_selector = Selector::parse("div#Panel1 img").map_err(|e| e.to_string())?;
+    let table_selector = Selector::parse("div#Panel1 table").map_err(|e| e.to_string())?;
+    let row_selector = Selector::parse("tr").map_err(|e| e.to_string())?;
+    let cell_selector = Selector::parse("td").map_err(|e| e.to_string())?;
+
+    let title = document.select(&title_selector).next().map(|e| e.inner_html()).unwrap_or_default();
+    let date = document.select(&date_selector).next().map(|e| e.inner_html()).unwrap_or_default();
+    let subject = document.select(&subject_selector).next().map(|e| e.inner_html()).unwrap_or_default();
+    let author = document.select(&author_selector).next().map(|e| e.inner_html()).unwrap_or_default();
+
+    let abstract_text = document.select(&abstract_selector)
+        .map(|e| e.text().collect::<Vec<_>>().join(" "))
+        .collect::<Vec<_>>()
+        .join("\n")
+        .replace("\n", " ")
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ");
+
+    let file = document.select(&file_selector).next().map(|e| {
+        e.value().attr("src").map(|s| s.replace("data:image/png;base64,", ""))
+    }).flatten();
+
+    let tables = document.select(&table_selector).flat_map(|table| {
+        table.select(&row_selector).map(|row| {
+            row.select(&cell_selector).map(|cell| {
+                cell.text().collect::<Vec<_>>().join(" ")
+            }).collect::<Vec<_>>()
+        }).collect::<Vec<_>>()
+    }).collect::<Vec<_>>();
+
+    let news_details = NewsDetails {
+        title,
+        date,
+        subject,
+        author,
+        abstract_text: Some(abstract_text),
+        file,
+        table: Some(tables),
+    };
+
+    Ok(serde_json::to_string(&news_details).map_err(|e| e.to_string())?)
+}
+
+pub fn request_news_sync(url: &str,cookies: &str) -> Result<String, String> {
+    let runtime = tokio::runtime::Runtime::new().map_err(|e| e.to_string())?;
+    runtime.block_on(request_news_details(url, cookies))
 }

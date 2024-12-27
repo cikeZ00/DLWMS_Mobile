@@ -6,8 +6,8 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `extract_hidden_value`, `login`, `request_home`, `request_page`, `request`, `validate_cookies`
-// These types are ignored because they are not used by any `pub` functions: `News`
+// These functions are ignored because they are not marked as `pub`: `extract_hidden_value`, `login`, `request_home`, `request_news_details`, `request_page`, `request`, `validate_cookies`
+// These types are ignored because they are not used by any `pub` functions: `NewsDetails`, `News`
 
 Future<LoginResponse> loginSync(
         {required String username,
@@ -27,6 +27,11 @@ Future<ValidateCookiesResponse> validateCookiesSync(
 
 Future<String> requestHomeSync({required String cookies}) =>
     RustLib.instance.api.crateApiSimpleRequestHomeSync(cookies: cookies);
+
+Future<String> requestNewsSync(
+        {required String url, required String cookies}) =>
+    RustLib.instance.api
+        .crateApiSimpleRequestNewsSync(url: url, cookies: cookies);
 
 class LoginResponse {
   final bool success;
