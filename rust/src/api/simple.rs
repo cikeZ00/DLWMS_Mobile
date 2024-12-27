@@ -195,3 +195,82 @@ async fn validate_cookies(cookies: &str) -> Result<ValidateCookiesResponse, Stri
 
     Ok(ValidateCookiesResponse { is_valid })
 }
+
+// HTML Filtering
+async fn request(url: &str, cookies: &str) -> Result<String, String> {
+    let cookie_store = CookieStore::new(None);
+    let cookie_store = CookieStoreMutex::new(cookie_store);
+    let cookie_store = Arc::new(cookie_store);
+
+    let client = Client::builder()
+        .cookie_provider(Arc::clone(&cookie_store))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let cookies_str = cookies.replace(";", "; ");
+    let mut headers = HeaderMap::new();
+    headers.insert(USER_AGENT, HeaderValue::from_static("Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:133.0) Gecko/20100101 Firefox/133.0"));
+    headers.insert(COOKIE, HeaderValue::from_str(&cookies_str).map_err(|e| e.to_string())?);
+
+    let response = client
+        .get(url)
+        .headers(headers)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let response_text = response.text().await.map_err(|e| e.to_string())?;
+
+    if !response_text.contains("logout.aspx") {
+        return Err("Failed to request page. Cookies are invalid.".to_string());
+    }
+
+    Ok(response_text)
+}
+
+
+// HOME PAGE
+#[derive(serde::Serialize, serde::Deserialize)]
+struct News {
+    title: String,
+    date: String,
+    subject: String,
+    author: String,
+    abstract_text: String,
+}
+
+async fn request_home(cookies: &str) -> Result<String, String> {
+    let html = request("https://www.fit.ba/student/default.aspx", cookies).await?;
+    let document = Html::parse_document(&html);
+    let news_selector = Selector::parse("ul.newslist > li").map_err(|e| e.to_string())?;
+    let title_selector = Selector::parse("a#lnkNaslov").map_err(|e| e.to_string())?;
+    let date_selector = Selector::parse("span#lblDatum").map_err(|e| e.to_string())?;
+    let subject_selector = Selector::parse("span#lblPredmet").map_err(|e| e.to_string())?;
+    let author_selector = Selector::parse("a#HyperLink9").map_err(|e| e.to_string())?;
+    let abstract_selector = Selector::parse("div.abstract").map_err(|e| e.to_string())?;
+
+    let mut news_items = Vec::new();
+
+    for news in document.select(&news_selector) {
+        let title = news.select(&title_selector).next().map(|e| e.inner_html()).unwrap_or_default();
+        let date = news.select(&date_selector).next().map(|e| e.inner_html()).unwrap_or_default();
+        let subject = news.select(&subject_selector).next().map(|e| e.inner_html()).unwrap_or_default();
+        let author = news.select(&author_selector).next().map(|e| e.inner_html()).unwrap_or_default();
+        let abstract_text = news.select(&abstract_selector).next().map(|e| e.inner_html()).unwrap_or_default();
+
+        news_items.push(News {
+            title,
+            date,
+            subject,
+            author,
+            abstract_text,
+        });
+    }
+
+    Ok(serde_json::to_string(&news_items).map_err(|e| e.to_string())?)
+}
+
+pub fn request_home_sync(cookies: &str) -> Result<String, String> {
+    let runtime = tokio::runtime::Runtime::new().map_err(|e| e.to_string())?;
+    runtime.block_on(request_home(cookies))
+}

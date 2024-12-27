@@ -24,19 +24,10 @@ class GlobalDrawer extends StatelessWidget {
         children: <Widget>[
           DrawerHeader(
             child: Center(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primary,
-                  borderRadius: BorderRadius.circular(8.0),
-                ),
-                child: Padding(
-                  // Add padding to the size of the drawer header
-                  padding: const EdgeInsets.all(30.0),
-                  child: Text(
-                    'DLWMS',
-                    style: theme.textTheme.displayLarge,
-                  ),
-                ),
+              child: Image.asset(
+                'assets/icon/icon.png',
+                width: 100,
+                height: 100,
               ),
             ),
           ),

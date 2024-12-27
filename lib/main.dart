@@ -18,7 +18,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'DLWMS But Good',
+      title: 'DLWMS',
       theme: ThemeProvider.theme,
       home: const InitialPage(),
     );
