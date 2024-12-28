@@ -240,26 +240,79 @@ struct News {
     link: String,
 }
 
-async fn request_home(cookies: &str) -> Result<String, String> {
-    let html = request("https://www.fit.ba/student/default.aspx", cookies).await?;
+async fn request_home(cookies: &str, page_number: usize) -> Result<String, String> {
+    let base_url = "https://www.fit.ba/student/default.aspx";
+    println!("Fetching page: {}", page_number);
+
+    // Perform the request for the current page
+    let html = request(base_url, cookies).await?;
     let document = Html::parse_document(&html);
+
+    let viewstate = extract_hidden_value(&document, "__VIEWSTATE").map_err(|e| e.to_string())?;
+    let eventvalidation = extract_hidden_value(&document, "__EVENTVALIDATION").map_err(|e| e.to_string())?;
+    let viewstategenerator = extract_hidden_value(&document, "__VIEWSTATEGENERATOR").map_err(|e| e.to_string())?;
+
     let news_selector = Selector::parse("ul.newslist > li").map_err(|e| e.to_string())?;
     let title_selector = Selector::parse("a#lnkNaslov").map_err(|e| e.to_string())?;
     let date_selector = Selector::parse("span#lblDatum").map_err(|e| e.to_string())?;
     let subject_selector = Selector::parse("span#lblPredmet").map_err(|e| e.to_string())?;
     let author_selector = Selector::parse("a#HyperLink9").map_err(|e| e.to_string())?;
     let abstract_selector = Selector::parse("div.abstract").map_err(|e| e.to_string())?;
-    
+
+    // Dynamically calculate the correct __EVENTTARGET based on the page_number
+    let event_target = {
+        let set_number = (page_number - 1) / 10; // Which set of 10 we're in
+        let page_within_set = (page_number - 1) % 10; // Which page within that set
+        format!(
+            "ctl00$ContentPlaceHolder1$dgObavijesti$ctl14$ctl{:02}",
+            page_within_set + set_number * 10
+        )
+    };
+
+    // Prepare POST data
+    let post_data = [
+        ("__EVENTTARGET", event_target.as_str()),
+        ("__EVENTARGUMENT", ""),
+        ("__VIEWSTATE", viewstate.as_str()),
+        ("__EVENTVALIDATION", eventvalidation.as_str()),
+        ("__VIEWSTATEGENERATOR", viewstategenerator.as_str()),
+    ];
+
+    // Make POST request to fetch the desired page
+    let client = reqwest::Client::new();
+    let response = client
+        .post(base_url)
+        .header("Cookie", cookies)
+        .form(&post_data)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if !response.status().is_success() {
+        return Err("Failed to fetch the requested page".to_string());
+    }
+
+    let html = response.text().await.map_err(|e| e.to_string())?;
+    let document = Html::parse_document(&html);
+
     let mut news_items = Vec::new();
 
     for news in document.select(&news_selector) {
         let title = news.select(&title_selector).next().map(|e| e.inner_html()).unwrap_or_default();
+        println!("Title: {}", title);
         let date = news.select(&date_selector).next().map(|e| e.inner_html()).unwrap_or_default();
         let subject = news.select(&subject_selector).next().map(|e| e.inner_html()).unwrap_or_default();
         let author = news.select(&author_selector).next().map(|e| e.inner_html()).unwrap_or_default();
-        let link = format!("https://www.fit.ba/student/{}", news.select(&title_selector).next().map(|e| e.value().attr("href").unwrap_or_default()).unwrap_or_default().to_string());
+        let link = format!(
+            "https://www.fit.ba/student/{}",
+            news.select(&title_selector)
+                .next()
+                .map(|e| e.value().attr("href").unwrap_or_default())
+                .unwrap_or_default()
+        );
 
-        let abstract_text = news.select(&abstract_selector)
+        let abstract_text = news
+            .select(&abstract_selector)
             .map(|e| e.text().collect::<Vec<_>>().join(" "))
             .collect::<Vec<_>>()
             .join("\n")
@@ -267,7 +320,8 @@ async fn request_home(cookies: &str) -> Result<String, String> {
             .split_whitespace()
             .collect::<Vec<_>>()
             .join(" ");
-        
+
+
         news_items.push(News {
             title,
             date,
@@ -281,9 +335,14 @@ async fn request_home(cookies: &str) -> Result<String, String> {
     Ok(serde_json::to_string(&news_items).map_err(|e| e.to_string())?)
 }
 
-pub fn request_home_sync(cookies: &str) -> Result<String, String> {
+
+
+
+
+
+pub fn request_home_sync(cookies: &str, page_index: usize) -> Result<String, String> {
     let runtime = tokio::runtime::Runtime::new().map_err(|e| e.to_string())?;
-    runtime.block_on(request_home(cookies))
+    runtime.block_on(request_home(cookies, page_index))
 }
 
 // News Details
@@ -320,7 +379,6 @@ async fn request_news_details(url: &str, cookies: &str) -> Result<String, String
         .map(|e| e.text().collect::<Vec<_>>().join(" "))
         .collect::<Vec<_>>()
         .join("\n")
-        .replace("\n", " ")
         .split_whitespace()
         .collect::<Vec<_>>()
         .join(" ");

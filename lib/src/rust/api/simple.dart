@@ -25,8 +25,10 @@ Future<ValidateCookiesResponse> validateCookiesSync(
         {required String cookies}) =>
     RustLib.instance.api.crateApiSimpleValidateCookiesSync(cookies: cookies);
 
-Future<String> requestHomeSync({required String cookies}) =>
-    RustLib.instance.api.crateApiSimpleRequestHomeSync(cookies: cookies);
+Future<String> requestHomeSync(
+        {required String cookies, required BigInt pageIndex}) =>
+    RustLib.instance.api
+        .crateApiSimpleRequestHomeSync(cookies: cookies, pageIndex: pageIndex);
 
 Future<String> requestNewsSync(
         {required String url, required String cookies}) =>
