@@ -66,7 +66,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.7.0';
 
   @override
-  int get rustContentHash => -578834766;
+  int get rustContentHash => 620579883;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -82,7 +82,11 @@ abstract class RustLibApi extends BaseApi {
       required String password,
       required String institute});
 
-  Future<String> crateApiSimpleRequestHomeSync({required String cookies});
+  Future<String> crateApiSimpleRequestHomeSync(
+      {required String cookies, required BigInt pageIndex});
+
+  Future<String> crateApiSimpleRequestNewsSync(
+      {required String url, required String cookies});
 
   Future<PageRequestResponse> crateApiSimpleRequestPageSync(
       {required String url, required String cookies});
@@ -129,11 +133,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<String> crateApiSimpleRequestHomeSync({required String cookies}) {
+  Future<String> crateApiSimpleRequestHomeSync(
+      {required String cookies, required BigInt pageIndex}) {
     return handler.executeNormal(NormalTask(
       callFfi: (port_) {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_String(cookies, serializer);
+        sse_encode_usize(pageIndex, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
             funcId: 2, port: port_);
       },
@@ -142,7 +148,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         decodeErrorData: sse_decode_String,
       ),
       constMeta: kCrateApiSimpleRequestHomeSyncConstMeta,
-      argValues: [cookies],
+      argValues: [cookies, pageIndex],
       apiImpl: this,
     ));
   }
@@ -150,7 +156,34 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiSimpleRequestHomeSyncConstMeta =>
       const TaskConstMeta(
         debugName: "request_home_sync",
-        argNames: ["cookies"],
+        argNames: ["cookies", "pageIndex"],
+      );
+
+  @override
+  Future<String> crateApiSimpleRequestNewsSync(
+      {required String url, required String cookies}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(url, serializer);
+        sse_encode_String(cookies, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 3, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_String,
+        decodeErrorData: sse_decode_String,
+      ),
+      constMeta: kCrateApiSimpleRequestNewsSyncConstMeta,
+      argValues: [url, cookies],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSimpleRequestNewsSyncConstMeta =>
+      const TaskConstMeta(
+        debugName: "request_news_sync",
+        argNames: ["url", "cookies"],
       );
 
   @override
@@ -162,7 +195,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_String(url, serializer);
         sse_encode_String(cookies, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 3, port: port_);
+            funcId: 4, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_page_request_response,
@@ -188,7 +221,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_String(cookies, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 4, port: port_);
+            funcId: 5, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_validate_cookies_response,
@@ -263,6 +296,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  BigInt dco_decode_usize(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeU64(raw);
+  }
+
+  @protected
   ValidateCookiesResponse dco_decode_validate_cookies_response(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -332,6 +371,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  BigInt sse_decode_usize(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getBigUint64();
+  }
+
+  @protected
   ValidateCookiesResponse sse_decode_validate_cookies_response(
       SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -396,6 +441,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_u_8(int self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putUint8(self);
+  }
+
+  @protected
+  void sse_encode_usize(BigInt self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putBigUint64(self);
   }
 
   @protected
