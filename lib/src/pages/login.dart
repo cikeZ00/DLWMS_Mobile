@@ -70,11 +70,13 @@ class _LoginPageState extends State<LoginPage> {
             TextField(
               controller: _usernameController,
               decoration: const InputDecoration(labelText: 'Username'),
+              autofillHints: const [AutofillHints.username],
             ),
             TextField(
               controller: _passwordController,
               decoration: const InputDecoration(labelText: 'Password'),
               obscureText: true,
+              autofillHints: const [AutofillHints.password],
             ),
             DropdownButton<String>(
               value: _selectedInstitute,

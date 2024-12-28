@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dlwms_mobile/src/pages/login.dart';
 import 'package:dlwms_mobile/src/pages/home.dart';
+import 'package:dlwms_mobile/src/pages/webview_page.dart';
 
 class GlobalDrawer extends StatelessWidget {
   const GlobalDrawer({super.key});
@@ -23,11 +24,14 @@ class GlobalDrawer extends StatelessWidget {
       child: Column(
         children: <Widget>[
           DrawerHeader(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+            ),
             child: Center(
               child: Image.asset(
                 'assets/icon/icon.png',
-                width: 100,
-                height: 100,
+                width: 300,
+                height: 300,
               ),
             ),
           ),
@@ -37,6 +41,15 @@ class GlobalDrawer extends StatelessWidget {
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(builder: (context) => const MyHomePage()),
+              );
+            },
+          ),
+          ListTile(
+            title: Text('Student Portal', style: theme.textTheme.bodyLarge),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const WebViewPage()),
               );
             },
           ),
